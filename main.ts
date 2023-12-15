@@ -101,7 +101,6 @@ export default class MyPlugin extends Plugin {
 	renderLatexToSVG(source: string, md5Hash: string, svgPath: string) {
 		return new Promise((resolve, reject) => {
 			source = this.formatLatexSource(source);
-
 			temp.mkdir("obsidian-latex-renderer", (err, dirPath) => {
 				if (err) reject(err);
 				fs.writeFileSync(path.join(dirPath, md5Hash + ".tex"), source);
@@ -112,9 +111,30 @@ export default class MyPlugin extends Plugin {
 					async (err, stdout, stderr) => {
 						if (err) reject([err, stdout, stderr]);
 						else {
-							if (this.settings.enableCache) fs.copyFileSync(path.join(dirPath, md5Hash + ".svg"), svgPath);
-							const svgData = fs.readFileSync(path.join(dirPath, md5Hash + ".svg"));
-							resolve(svgData);
+							const fullPath = path.join(dirPath, md5Hash + ".svg");
+
+							const svgData = fs.readFileSync(fullPath).toString();
+							const svgParent = document.createElement("div")
+							svgParent.innerHTML = svgData;
+							const svgElData = Array.from(svgParent.children);
+							// SVG files typically include at least an XML tag <!--?xml version="1.0" encoding="UTF-8"?-->
+							// but it could be multiple SVGs, we want to work on all of them
+							for (const ele of svgElData) {
+								// Solve SVG id collisions
+								// https://forum.obsidian.md/t/svg-gradient-rendered-differently-in-live-preview-vs-preview/31593/10
+								ele.querySelectorAll("[id]").forEach((el) => {
+									const id = el.id;
+									const uniqueness = md5Hash;
+								
+									ele.innerHTML = ele.innerHTML.replaceAll(id, `${id}-${uniqueness}`);
+								});
+							}
+							svgParent.replaceChildren(...svgElData);
+
+							fs.writeFileSync(fullPath, svgParent.innerHTML);
+
+							if (this.settings.enableCache) fs.copyFileSync(fullPath, svgPath);
+							resolve(svgParent.innerHTML);
 						}
 					},
 				);
