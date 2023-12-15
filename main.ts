@@ -1,4 +1,4 @@
-import { App, FileSystemAdapter, MarkdownPostProcessorContext, Plugin, PluginSettingTab, SectionCache, Setting, TFile, TFolder } from 'obsidian';
+import { App, FileSystemAdapter, MarkdownPostProcessorContext, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
@@ -64,7 +64,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	formatLatexSource(source: string) {
-		return "\\documentclass{standalone}\n" + source;
+		return source;
 	}
 
 	hashLatexSource(source: string) {
@@ -74,8 +74,8 @@ export default class MyPlugin extends Plugin {
 
 	async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		return new Promise<void>((resolve, reject) => {
-			let md5Hash = this.hashLatexSource(source);
-			let svgPath = path.join(this.cacheFolderPath, `${md5Hash}.svg`);
+			const md5Hash = this.hashLatexSource(source);
+			const svgPath = path.join(this.cacheFolderPath, `${md5Hash}.svg`);
 
 			// SVG file has already been cached
 			// Could have a case where svgCache has the key but the cached file has been deleted
@@ -99,7 +99,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	renderLatexToSVG(source: string, md5Hash: string, svgPath: string) {
-		return new Promise(async (resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			source = this.formatLatexSource(source);
 
 			temp.mkdir("obsidian-latex-renderer", (err, dirPath) => {
@@ -113,9 +113,9 @@ export default class MyPlugin extends Plugin {
 						if (err) reject([err, stdout, stderr]);
 						else {
 							if (this.settings.enableCache) fs.copyFileSync(path.join(dirPath, md5Hash + ".svg"), svgPath);
-							let svgData = fs.readFileSync(path.join(dirPath, md5Hash + ".svg"));
+							const svgData = fs.readFileSync(path.join(dirPath, md5Hash + ".svg"));
 							resolve(svgData);
-						};
+						}
 					},
 				);
 			})
@@ -123,7 +123,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async saveCache() {
-		let temp = new Map();
+		const temp = new Map();
 		for (const [k, v] of this.cache) {
 			temp.set(k, [...v])
 		}
@@ -140,7 +140,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async cleanUpCache() {
-		let file_paths = new Set<string>();
+		const file_paths = new Set<string>();
 		for (const fps of this.cache.values()) {
 			for (const fp of fps) {
 				file_paths.add(fp);
@@ -148,7 +148,7 @@ export default class MyPlugin extends Plugin {
 		}
 
 		for (const file_path of file_paths) {
-			let file = this.app.vault.getAbstractFileByPath(file_path);
+			const file = this.app.vault.getAbstractFileByPath(file_path);
 			if (file == null) {
 				this.removeFileFromCache(file_path);
 			} else {
@@ -159,8 +159,8 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async removeUnusedCachesForFile(file: TFile) {
-		let hashes_in_file = await this.getLatexHashesFromFile(file);
-		let hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
+		const hashes_in_file = await this.getLatexHashesFromFile(file);
+		const hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
 		for (const hash of hashes_in_cache) {
 			if (!hashes_in_file.contains(hash)) {
 				this.cache.get(hash)?.delete(file.path);
@@ -186,8 +186,8 @@ export default class MyPlugin extends Plugin {
 	}
 
 	getLatexHashesFromCacheForFile(file: TFile) {
-		let hashes: string[] = [];
-		let path = file.path;
+		const hashes: string[] = [];
+		const path = file.path;
 		for (const [k, v] of this.cache.entries()) {
 			if (v.has(path)) {
 				hashes.push(k);
@@ -197,14 +197,14 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async getLatexHashesFromFile(file: TFile) {
-		let hashes: string[] = [];
-		let sections = this.app.metadataCache.getFileCache(file)?.sections
+		const hashes: string[] = [];
+		const sections = this.app.metadataCache.getFileCache(file)?.sections
 		if (sections != undefined) {
-			let lines = (await this.app.vault.read(file)).split('\n');
+			const lines = (await this.app.vault.read(file)).split('\n');
 			for (const section of sections) {
 				if (section.type != "code" && lines[section.position.start.line].match("``` *latex") == null) continue;
-				let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
-				let hash = this.hashLatexSource(source);
+				const source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
+				const hash = this.hashLatexSource(source);
 				hashes.push(hash);
 			}
 		}
